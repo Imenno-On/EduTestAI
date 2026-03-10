@@ -1,0 +1,59 @@
+############################
+# Общий .gitignore проекта #
+############################
+
+# OS / системные файлы
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+
+####################
+# IDE / инструменты
+####################
+.idea/
+.vscode/
+*.iml
+
+############################
+# Python / backend / venv  #
+############################
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+venv/
+env/
+
+backend/.env
+backend/.env.*
+
+########################
+# Node / frontend      #
+########################
+node_modules/
+frontend/node_modules/
+
+dist/
+build/
+.cache/
+coverage/
+
+frontend/.env
+frontend/.env.*
+
+########################
+# Docker / misc        #
+########################
+*.pid
+*.seed
+

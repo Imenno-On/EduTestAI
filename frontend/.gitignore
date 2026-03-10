@@ -1,0 +1,37 @@
+# ===============================
+# 🧠 COMMON
+# ===============================
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+.venv/
+# ===============================
+# 🧰 PYCHARM / IDE
+# ===============================
+.idea/
+.vscode/
+*.iml
+
+# ===============================
+# 🧱 NODE / FRONTEND
+# ===============================
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# lock-файлы (если не нужны в репо)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ==========================
+
