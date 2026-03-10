@@ -18,6 +18,7 @@ type StoredAuth = {
     role?: string;
   };
   token: string;
+  refreshToken?: string;
 };
 
 const STORAGE_KEY = "edutest_auth_state";
@@ -33,7 +34,22 @@ function getToken(): string | null {
   }
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+function getRefreshToken(): string | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredAuth;
+    return parsed.refreshToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+  retryOnAuth: boolean = true,
+): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -63,6 +79,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     } catch {
       // ignore parse error
     }
+
+    if (res.status === 401 && retryOnAuth) {
+      const refreshed = await refreshTokens();
+      if (refreshed) {
+        return request<T>(path, options, false);
+      }
+    }
+
     throw new Error(detail || `HTTP ${res.status}`);
   }
 
@@ -100,8 +124,34 @@ export interface UserResponse {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   user: UserResponse;
+}
+
+async function refreshTokens(): Promise<AuthResponse | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+  try {
+    const data = await request<AuthResponse>(
+      "/api/auth/refresh",
+      {
+        method: "POST",
+        body: { refresh_token: refreshToken },
+      },
+      false,
+    );
+
+    const payload: StoredAuth = {
+      user: data.user,
+      token: data.access_token,
+      refreshToken: data.refresh_token,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 // ===== API clients =====
@@ -122,6 +172,19 @@ export const authApi = {
         full_name: params.full_name,
       },
     }),
+
+  logout: async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return;
+    await request<void>(
+      "/api/auth/logout",
+      {
+        method: "POST",
+        body: { refresh_token: refreshToken },
+      },
+      false,
+    );
+  },
 };
 
 export const testsApi = {

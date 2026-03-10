@@ -53,6 +53,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       const parsed = JSON.parse(stored) as {
         user: User;
         token: string;
+        refreshToken?: string;
       };
       setState((prev) => ({
         ...prev,
@@ -64,9 +65,15 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     }
   }, []);
 
-  const persistState = useCallback((user: User, token: string) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, token }));
-  }, []);
+  const persistState = useCallback(
+    (user: User, accessToken: string, refreshToken: string) => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ user, token: accessToken, refreshToken }),
+      );
+    },
+    [],
+  );
 
   const clearPersistedState = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -77,7 +84,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
       try {
         const data = await authApi.login(email, password);
-        persistState(data.user, data.access_token);
+        persistState(data.user, data.access_token, data.refresh_token);
         setState({
           user: data.user,
           token: data.access_token,
@@ -106,7 +113,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           password: params.password,
           full_name: params.fullName,
         } as any);
-        persistState(data.user, data.access_token);
+        persistState(data.user, data.access_token, data.refresh_token);
         setState({
           user: data.user,
           token: data.access_token,
@@ -127,12 +134,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   );
 
   const logout = useCallback(() => {
-    clearPersistedState();
-    setState({
-      user: null,
-      token: null,
-      isLoading: false,
-      error: null,
+    authApi.logout().finally(() => {
+      clearPersistedState();
+      setState({
+        user: null,
+        token: null,
+        isLoading: false,
+        error: null,
+      });
     });
   }, [clearPersistedState]);
 

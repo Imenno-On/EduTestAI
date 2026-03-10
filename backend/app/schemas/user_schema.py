@@ -40,6 +40,7 @@ class Token(BaseModel):
 
 class TokenWithUser(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
     user: UserResponse
 

@@ -19,9 +19,16 @@ class User(Base):
     # Связь с сгенерированными формами
     generated_forms = relationship("GeneratedForm", back_populates="owner", cascade="all, delete-orphan")
 
+    # Refresh tokens for sessions
+    refresh_tokens = relationship(
+        "RefreshToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"
-    
+
     def get_role(self) -> Role:
         """Получить роль пользователя как enum"""
         if not self.role:
