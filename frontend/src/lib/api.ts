@@ -112,6 +112,38 @@ export interface GeneratedForm {
   owner_full_name?: string | null;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface TestAttachment {
+  id: number;
+  form_id: number;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+}
+
+export interface TestAttachmentWithUrl extends TestAttachment {
+  download_url: string;
+}
+
+export type TestsListParams = {
+  search?: string;
+  date_from?: string;
+  date_to?: string;
+  owner_id?: number;
+  sort?: "created_at" | "title" | "question_count";
+  order?: "asc" | "desc";
+  page?: number;
+  per_page?: number;
+};
+
 export interface UserResponse {
   id: number;
   email: string;
@@ -187,9 +219,34 @@ export const authApi = {
   },
 };
 
+function buildQueryString(params: TestsListParams): string {
+  const sp = new URLSearchParams();
+  if (params.search) sp.set("search", params.search);
+  if (params.date_from) sp.set("date_from", params.date_from);
+  if (params.date_to) sp.set("date_to", params.date_to);
+  if (params.owner_id != null) sp.set("owner_id", String(params.owner_id));
+  if (params.sort) sp.set("sort", params.sort);
+  if (params.order) sp.set("order", params.order);
+  if (params.page != null) sp.set("page", String(params.page));
+  if (params.per_page != null) sp.set("per_page", String(params.per_page));
+  const q = sp.toString();
+  return q ? `?${q}` : "";
+}
+
 export const testsApi = {
-  getGeneratedForms: () =>
-    request<GeneratedForm[]>("/api/tests/generated"),
+  getGeneratedForms: (params?: TestsListParams) => {
+    const qs = params ? buildQueryString(params) : "";
+    return request<PaginatedResponse<GeneratedForm>>(`/api/tests/generated${qs}`);
+  },
+
+  getGeneratedForm: (formId: number) =>
+    request<GeneratedForm>(`/api/tests/generated/${formId}`),
+
+  updateGeneratedForm: (formId: number, data: { title?: string }) =>
+    request<GeneratedForm>(`/api/tests/generated/${formId}`, {
+      method: "PATCH",
+      body: data,
+    }),
 
   deleteGeneratedForm: (formId: number) =>
     request<void>(`/api/tests/generated/${formId}`, {
@@ -200,6 +257,32 @@ export const testsApi = {
     request<GeneratedForm>("/api/tests/generate", {
       method: "POST",
       body: { text },
+    }),
+
+  listAttachments: (formId: number) =>
+    request<TestAttachmentWithUrl[]>(`/api/tests/generated/${formId}/attachments`),
+
+  uploadAttachment: async (formId: number, file: File) => {
+    const url = `${API_BASE_URL}/api/tests/generated/${formId}/attachments`;
+    const token = getToken();
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const detail = data?.detail ?? res.statusText;
+      throw new Error(typeof detail === "string" ? detail : "Upload failed");
+    }
+    return res.json() as Promise<TestAttachment>;
+  },
+
+  deleteAttachment: (formId: number, attachmentId: number) =>
+    request<void>(`/api/tests/generated/${formId}/attachments/${attachmentId}`, {
+      method: "DELETE",
     }),
 };
 

@@ -44,9 +44,12 @@ class RefreshTokenRepository:
         return db_token
 
     async def get_valid(self, token: str) -> Optional[RefreshToken]:
+        from sqlalchemy.orm import selectinload
         now = datetime.utcnow()
         res = await self.session.execute(
-            select(RefreshToken).where(
+            select(RefreshToken)
+            .options(selectinload(RefreshToken.user))
+            .where(
                 RefreshToken.token == token,
                 RefreshToken.revoked.is_(False),
                 RefreshToken.expires_at > now,

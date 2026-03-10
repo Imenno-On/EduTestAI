@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
@@ -40,7 +41,7 @@ async def login(
     return await auth_service.login(form_data.email, form_data.password)
 
 
-class RefreshRequest(UserCreate.__base__):  # reuse BaseModel import
+class RefreshRequest(BaseModel):
     refresh_token: str
 
 

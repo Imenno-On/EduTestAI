@@ -18,5 +18,7 @@ class GeneratedForm(Base):
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     owner = relationship("User", back_populates="generated_forms")
 
+    attachments = relationship("TestAttachment", back_populates="form", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<GeneratedForm(id={self.id}, title={self.title})>"

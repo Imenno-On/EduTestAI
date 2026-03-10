@@ -112,3 +112,45 @@
   - может менять роли (`PATCH /api/users/{id}/role`)
   - видит все тесты
 
+---
+
+## Лабораторная №3 — Фильтрация, CRUD, объектное хранилище
+
+### Фильтрация, поиск, сортировка, пагинация
+
+**Сущность**: список тестов (`GeneratedForm`).
+
+- **Фильтры**: поиск по названию (`search`), дата от (`date_from`), дата до (`date_to`), для admin — `owner_id`.
+- **Сортировка**: по полям `created_at`, `title`, `question_count`, порядок `asc`/`desc`.
+- **Пагинация**: `page`, `per_page` (до 100).
+- Состояние фильтров сохраняется в URL (query params), при навигации назад параметры восстанавливаются.
+
+**Backend**: `GET /api/tests/generated` с query-параметрами. Валидация через FastAPI `Query()`.
+
+**Frontend**: форма фильтров на странице «Мои тесты», кнопка «Применить», пагинация «Назад/Далее».
+
+### CRUD и вложения
+
+- **Создание**: `POST /api/tests/generate` (как ранее).
+- **Просмотр**: `GET /api/tests/generated`, `GET /api/tests/generated/{id}`.
+- **Редактирование**: `PATCH /api/tests/generated/{id}` (обновление `title`).
+- **Удаление**: `DELETE /api/tests/generated/{id}` (каскадно удаляет вложения и записи в S3).
+
+### Объектное хранилище (S3-совместимое MinIO)
+
+- **Сервис**: `backend/app/services/storage_service.py`.
+- **Модель**: `TestAttachment` — связь `form_id` → `GeneratedForm`.
+- **Ограничения**: расширения `.pdf`, `.jpg`, `.jpeg`, `.png`, `.gif`, `.txt`; размер до 10 МБ.
+- **Загрузка**: `POST /api/tests/generated/{id}/attachments` (multipart/form-data).
+- **Список + pre-signed URL**: `GET /api/tests/generated/{id}/attachments`.
+- **Удаление**: `DELETE /api/tests/generated/{id}/attachments/{attachment_id}`.
+
+MinIO поднимается через `docker-compose`; бакет создаётся при старте backend.
+
+### Запуск с MinIO
+
+```bash
+docker-compose up -d   # PostgreSQL + MinIO
+cd backend && pip install boto3 && alembic upgrade head && uvicorn app.main:app --reload
+```
+

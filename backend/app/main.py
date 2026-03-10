@@ -1,3 +1,7 @@
+from contextlib import asynccontextmanager
+import asyncio
+import logging
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -12,7 +16,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.security import OAuth2PasswordBearer
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        from app.services.storage_service import ensure_bucket
+        await asyncio.to_thread(ensure_bucket)
+    except Exception as e:
+        logging.getLogger("app").warning("S3 bucket init skipped: %s", e)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="EduTest AI Backend",
     version="0.1.0",
     openapi_tags=[

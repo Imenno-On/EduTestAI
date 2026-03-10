@@ -1,7 +1,17 @@
 from datetime import datetime
-from pydantic import BaseModel, HttpUrl, field_validator
+from pydantic import BaseModel, field_validator
 import re
-from typing import Optional
+from typing import Optional, List, Generic, TypeVar
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
 
 
 class GenerateTestRequest(BaseModel):
@@ -47,3 +57,29 @@ class GeneratedFormRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GeneratedFormUpdate(BaseModel):
+    title: Optional[str] = None
+
+
+class TestAttachmentRead(BaseModel):
+    id: int
+    form_id: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TestAttachmentWithUrl(BaseModel):
+    id: int
+    form_id: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+    download_url: str
