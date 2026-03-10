@@ -83,6 +83,9 @@ export interface GeneratedForm {
   edit_url: string;
   question_count: number;
   created_at: string;
+  owner_id?: number | null;
+  owner_email?: string | null;
+  owner_full_name?: string | null;
 }
 
 export interface UserResponse {

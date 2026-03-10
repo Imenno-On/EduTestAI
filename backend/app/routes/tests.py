@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_session
 from app.models.generated_form import GeneratedForm
@@ -17,7 +18,7 @@ from app.models.user import User
 from app.schemas.generated_form_schema import GenerateTestRequest, GeneratedFormRead
 from app.services.google_forms_service import create_google_form
 from app.services.llm_service import generate_questions_from_text
-from app.core.dependencies import get_current_user, require_permission
+from app.core.dependencies import get_current_user, require_permission, require_any_permission
 from app.core.roles import Permission, Role
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,9 @@ router = APIRouter(prefix="/tests", tags=["Tests"])
 @router.get("/generated", response_model=List[GeneratedFormRead])
 async def list_generated_forms(
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_any_permission([Permission.TEST_VIEW_OWN, Permission.TEST_VIEW_ALL])
+    ),
 ):
     """Получить список сгенерированных тестов. USER — только свои, ADMIN — все."""
     try:
@@ -37,12 +40,15 @@ async def list_generated_forms(
         user_role = current_user.get_role()
         if user_role == Role.ADMIN:
             res = await session.execute(
-                select(GeneratedForm).order_by(GeneratedForm.created_at.desc())
+                select(GeneratedForm)
+                .options(selectinload(GeneratedForm.owner))
+                .order_by(GeneratedForm.created_at.desc())
             )
         else:
             res = await session.execute(
                 select(GeneratedForm)
                 .where(GeneratedForm.owner_id == current_user.id)
+                .options(selectinload(GeneratedForm.owner))
                 .order_by(GeneratedForm.created_at.desc())
             )
         forms = res.scalars().all()
@@ -53,6 +59,14 @@ async def list_generated_forms(
 
         result = []
         for form in forms:
+            owner_id = None
+            owner_email = None
+            owner_full_name = None
+            if user_role == Role.ADMIN and form.owner:
+                owner_id = form.owner.id
+                owner_email = form.owner.email
+                owner_full_name = form.owner.full_name
+
             try:
                 validated_form = GeneratedFormRead(
                     id=form.id,
@@ -61,6 +75,9 @@ async def list_generated_forms(
                     question_count=form.question_count if form.question_count is not None else 0,
                     title=form.title,
                     created_at=form.created_at,
+                    owner_id=owner_id,
+                    owner_email=owner_email,
+                    owner_full_name=owner_full_name,
                 )
                 result.append(validated_form)
             except ValidationError as validation_error:
@@ -73,6 +90,9 @@ async def list_generated_forms(
                         question_count=int(form.question_count) if form.question_count is not None else 0,
                         title=str(form.title) if form.title else "Без названия",
                         created_at=form.created_at if form.created_at else datetime.utcnow(),
+                        owner_id=owner_id,
+                        owner_email=owner_email,
+                        owner_full_name=owner_full_name,
                     )
                     result.append(manual_form)
                 except Exception as manual_error:
@@ -96,7 +116,9 @@ async def list_generated_forms(
 async def delete_generated_form(
     form_id: int,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_any_permission([Permission.TEST_DELETE_OWN, Permission.TEST_DELETE_ALL])
+    ),
 ):
     """Удалить сгенерированный тест."""
     res = await session.execute(select(GeneratedForm).where(GeneratedForm.id == form_id))

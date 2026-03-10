@@ -93,6 +93,19 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
               />
             </div>
 
+            {!isLogin && (
+              <div>
+                <label className="block mb-2 text-sm">Имя и фамилия</label>
+                <Input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Иван Иванов"
+                  className="h-11 border-2 border-gray-200 focus:border-primary rounded-lg"
+                />
+              </div>
+            )}
+
             {isLogin && (
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">

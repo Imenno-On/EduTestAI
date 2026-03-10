@@ -10,9 +10,11 @@ import {
   Check,
 } from "lucide-react";
 import { useGeneratedForms, useDeleteGeneratedForm } from "@/hooks/useTests";
+import { useAuth } from "@/context/AuthContext";
 
 export function TestsPage() {
   const { data: tests, isLoading, error, refetch } = useGeneratedForms();
+  const { isAdmin } = useAuth();
   const deleteMutation = useDeleteGeneratedForm();
 
   const handleCopy = (link: string) => {
@@ -111,7 +113,7 @@ export function TestsPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="font-semibold mb-2">{test.title}</h3>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
                     {new Date(test.created_at).toLocaleString("ru-RU")}
@@ -120,6 +122,12 @@ export function TestsPage() {
                     <Users className="w-4 h-4" />
                     Вопросов: {test.question_count}
                   </span>
+                  {isAdmin && test.owner_email && (
+                    <span className="flex items-center gap-1">
+                      <Users className="w-4 h-4" />
+                      Автор: {test.owner_full_name || test.owner_email}
+                    </span>
+                  )}
                 </div>
               </div>
               <Badge className="bg-green-100 text-green-700 hover:bg-green-100">

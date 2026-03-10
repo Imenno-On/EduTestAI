@@ -3,17 +3,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.core.dependencies import get_current_user, require_admin
+from app.core.dependencies import get_current_user, require_permission
 from app.db.session import get_session
 from app.schemas.user_schema import UserResponse, UserUpdateRole
 from app.models.user import User
-from app.core.roles import Role
+from app.core.roles import Role, Permission
 
 router = APIRouter()
 
 
 @router.get("/users/me", response_model=UserResponse)
-async def read_me(current_user: User = Depends(get_current_user)):
+async def read_me(current_user: User = Depends(require_permission(Permission.USER_VIEW_OWN))):
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
@@ -29,7 +29,7 @@ async def read_me(current_user: User = Depends(get_current_user)):
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_permission(Permission.USER_VIEW_ALL)),
 ):
     """Список всех пользователей. Доступно только администратору."""
     res = await session.execute(select(User).order_by(User.id))
@@ -52,7 +52,7 @@ async def update_user_role(
     user_id: int,
     payload: UserUpdateRole,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_permission(Permission.USER_MANAGE_ROLES)),
 ):
     """Изменить роль пользователя. Доступно только администратору."""
     res = await session.execute(select(User).where(User.id == user_id))

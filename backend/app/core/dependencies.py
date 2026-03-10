@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from sqlalchemy import select
 from app.core.roles import Role, Permission, has_permission
-from typing import List
+from typing import List, Iterable
 
 
 async def get_current_user(
@@ -73,6 +73,26 @@ def require_permission(permission: Permission):
             )
         return current_user
     return permission_checker
+
+
+def require_any_permission(permissions: Iterable[Permission]):
+    """
+    Зависимость: разрешить доступ, если у пользователя есть ХОТЯ БЫ одно из permissions.
+    Полезно там, где поведение различается (например, USER видит свои данные,
+    ADMIN — все), но сам эндпоинт один.
+    """
+    perms = list(permissions)
+
+    async def any_permission_checker(current_user: User = Depends(get_current_user)) -> User:
+        user_role = current_user.get_role()
+        if not any(has_permission(user_role, p) for p in perms):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required any permission: {[p.value for p in perms]}",
+            )
+        return current_user
+
+    return any_permission_checker
 
 
 def require_admin():

@@ -13,12 +13,14 @@ from fastapi.security import OAuth2PasswordBearer
 
 
 app = FastAPI(
-    title="EduTest AI",
+    title="EduTest AI Backend",
     version="0.1.0",
-    openapi_tags=[{"name": "Auth", "description": "Register & login"}],
-    swagger_ui_oauth2_redirect_url="/docs/oauth2-redirect",
+    openapi_tags=[
+        {"name": "Auth", "description": "Register & login"},
+        {"name": "Tests", "description": "AI generated tests"},
+        {"name": "Health Check", "description": "Health check"},
+    ],
 )
-app = FastAPI(title="EduTest AI Backend")
 
 app.add_middleware(
     CORSMiddleware,

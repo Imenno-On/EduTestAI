@@ -40,6 +40,10 @@ class GeneratedFormRead(BaseModel):
     question_count: Optional[int] = 0  # Может быть None в старых записях
     title: str
     created_at: datetime
+    # Информация о владельце (заполняется только для admin, для остальных ролей None)
+    owner_id: Optional[int] = None
+    owner_email: Optional[str] = None
+    owner_full_name: Optional[str] = None
 
     class Config:
         from_attributes = True

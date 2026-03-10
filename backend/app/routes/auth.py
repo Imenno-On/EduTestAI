@@ -17,11 +17,20 @@ async def register(user: UserCreate, session: AsyncSession = Depends(get_session
     res = await session.execute(select(User).where(User.email == user.email))
     if res.scalar():
         raise HTTPException(400, "Email already registered")
+
+    # Bootstrap: новый пользователь становится admin, если в БД ещё нет ни одного admin.
+    existing_admin_res = await session.execute(
+        select(User.id).where(User.role == Role.ADMIN.value).limit(1)
+    )
+    has_admin = existing_admin_res.scalar_one_or_none() is not None
+    is_first_admin = not has_admin
+    role_value = Role.ADMIN.value if is_first_admin else Role.USER.value
     db_user = User(
         email=user.email,
         hashed_password=get_password_hash(user.password),
         full_name=user.full_name,
-        role=Role.USER.value  # По умолчанию роль USER
+        role=role_value,
+        is_superuser=is_first_admin,
     )
     session.add(db_user)
     await session.commit()
