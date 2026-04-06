@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type HttpMethod = "GET" | "POST" | "DELETE" | "PATCH";
 
@@ -18,7 +18,6 @@ type StoredAuth = {
     role?: string;
   };
   token: string;
-  refreshToken?: string;
 };
 
 const STORAGE_KEY = "edutest_auth_state";
@@ -34,15 +33,8 @@ function getToken(): string | null {
   }
 }
 
-function getRefreshToken(): string | null {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as StoredAuth;
-    return parsed.refreshToken ?? null;
-  } catch {
-    return null;
-  }
+function clearStoredAuth(): void {
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 async function request<T>(
@@ -64,6 +56,7 @@ async function request<T>(
     method: options.method ?? "GET",
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
+    credentials: "include",
   });
 
   if (!res.ok) {
@@ -156,32 +149,22 @@ export interface UserResponse {
 
 export interface AuthResponse {
   access_token: string;
-  refresh_token: string;
   token_type: string;
   user: UserResponse;
 }
 
 async function refreshTokens(): Promise<AuthResponse | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
   try {
-    const data = await request<AuthResponse>(
-      "/api/auth/refresh",
-      {
-        method: "POST",
-        body: { refresh_token: refreshToken },
-      },
-      false,
-    );
+    const data = await request<AuthResponse>("/api/auth/refresh", { method: "POST" }, false);
 
     const payload: StoredAuth = {
       user: data.user,
       token: data.access_token,
-      refreshToken: data.refresh_token,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     return data;
   } catch {
+    clearStoredAuth();
     return null;
   }
 }
@@ -206,16 +189,7 @@ export const authApi = {
     }),
 
   logout: async () => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return;
-    await request<void>(
-      "/api/auth/logout",
-      {
-        method: "POST",
-        body: { refresh_token: refreshToken },
-      },
-      false,
-    );
+    await request<void>("/api/auth/logout", { method: "POST" }, false);
   },
 };
 
@@ -271,6 +245,7 @@ export const testsApi = {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
+      credentials: "include",
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

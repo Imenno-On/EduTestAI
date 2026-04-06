@@ -4,17 +4,16 @@ import { Input } from "./ui/input";
 import { Card } from "./ui/card";
 import { Sparkles, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Seo } from "./Seo";
 
-interface AuthPageProps {
-  onNavigate: (page: string) => void;
-}
-
-export function AuthPage({ onNavigate }: AuthPageProps) {
+export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { login, register, isLoading, error, resetError } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,11 +23,17 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
     } else {
       await register({ email, password, fullName });
     }
-    onNavigate("dashboard");
+    navigate("/app/tests");
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-yellow-100 flex items-center justify-center p-8 relative overflow-hidden">
+    <main className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-yellow-100 flex items-center justify-center p-8 relative overflow-hidden">
+      <Seo
+        title="Вход в EduTest AI"
+        description="Войдите в EduTest AI, чтобы управлять своими тестами, генерировать новые материалы и работать с учебными данными."
+        canonicalPath="/login"
+        noIndex
+      />
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" />
@@ -40,7 +45,7 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
         {/* Back button */}
         <Button
           variant="ghost"
-          onClick={() => onNavigate("home")}
+          onClick={() => navigate("/")}
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -57,16 +62,16 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
 
         {/* Auth Card */}
         <Card className="p-8 shadow-2xl border-2 border-purple-100 backdrop-blur-sm bg-white/95">
-          <div className="mb-6 text-center">
-            <h2 className="text-2xl font-semibold mb-2">
+          <header className="mb-6 text-center">
+            <h1 className="text-2xl font-semibold mb-2">
               {isLogin ? "Вход в аккаунт" : "Создать аккаунт"}
-            </h2>
+            </h1>
             <p className="text-muted-foreground">
               {isLogin 
                 ? "Войдите, чтобы управлять своими тестами" 
                 : "Зарегистрируйтесь и начните создавать тесты"}
             </p>
-          </div>
+          </header>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -120,10 +125,20 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
 
             <Button
               type="submit"
+              disabled={isLoading}
               className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-purple-600 hover:to-primary"
             >
-              {isLogin ? "Войти" : "Создать аккаунт"}
+              {isLoading
+                ? "Подождите..."
+                : isLogin
+                  ? "Войти"
+                  : "Создать аккаунт"}
             </Button>
+            {error ? (
+              <p className="text-sm text-red-600 text-center" role="alert">
+                {error}
+              </p>
+            ) : null}
           </form>
 
           <div className="mt-6 text-center">
@@ -159,6 +174,6 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

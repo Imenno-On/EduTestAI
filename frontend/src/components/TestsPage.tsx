@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -315,7 +315,12 @@ function TestCard({
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { attachments, isLoading: loadingAttachments, refetch: refetchAttachments } = useTestAttachments(test.id);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const {
+    attachments,
+    isLoading: loadingAttachments,
+    refetch: refetchAttachments,
+  } = useTestAttachments(test.id, attachmentsOpen);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -337,6 +342,14 @@ function TestCard({
     if (!confirm("Удалить вложение?")) return;
     await testsApi.deleteAttachment(test.id, attachmentId);
     refetchAttachments();
+  };
+
+  const toggleAttachments = async () => {
+    const nextOpen = !attachmentsOpen;
+    setAttachmentsOpen(nextOpen);
+    if (nextOpen && attachments.length === 0) {
+      await refetchAttachments();
+    }
   };
 
   return (
@@ -382,53 +395,64 @@ function TestCard({
       <div className="mb-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium">Вложения</span>
-          <label className="cursor-pointer inline-flex">
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.jpg,.jpeg,.png,.gif,.txt"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            <span className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background px-3 py-2 h-9 hover:bg-accent hover:text-accent-foreground">
-              {uploading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-1" />
-              ) : (
-                <Upload className="w-4 h-4 mr-1" />
-              )}
-              Загрузить
-            </span>
-          </label>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={toggleAttachments}>
+              {attachmentsOpen ? "Скрыть" : "Показать"}
+            </Button>
+            <label className="cursor-pointer inline-flex">
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.txt"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              <span className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background px-3 py-2 h-9 hover:bg-accent hover:text-accent-foreground">
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-1" />
+                )}
+                Загрузить
+              </span>
+            </label>
+          </div>
         </div>
         {uploadError && <p className="text-sm text-red-600 mb-1">{uploadError}</p>}
-        {loadingAttachments ? (
-          <p className="text-sm text-muted-foreground">Загрузка списка...</p>
-        ) : attachments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Нет вложений</p>
+        {attachmentsOpen ? (
+          loadingAttachments ? (
+            <p className="text-sm text-muted-foreground">Загрузка списка...</p>
+          ) : attachments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет вложений</p>
+          ) : (
+            <ul className="space-y-1">
+              {attachments.map((att) => (
+                <li key={att.id} className="flex items-center gap-2 text-sm">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <a
+                    href={att.download_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline truncate flex-1"
+                  >
+                    {att.filename}
+                  </a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-destructive"
+                    onClick={() => handleDeleteAttachment(att.id)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )
         ) : (
-          <ul className="space-y-1">
-            {attachments.map((att) => (
-              <li key={att.id} className="flex items-center gap-2 text-sm">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <a
-                  href={att.download_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline truncate flex-1"
-                >
-                  {att.filename}
-                </a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-destructive"
-                  onClick={() => handleDeleteAttachment(att.id)}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <p className="text-sm text-muted-foreground">
+            Вложения загружаются по запросу, чтобы не перегружать страницу.
+          </p>
         )}
       </div>
 

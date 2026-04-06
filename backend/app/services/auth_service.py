@@ -38,7 +38,7 @@ class AuthService:
         )
         return access_token, refresh_token
 
-    async def register_user(self, payload: UserCreate, session: AsyncSession) -> TokenWithUser:
+    async def register_user(self, payload: UserCreate, session: AsyncSession) -> Tuple[TokenWithUser, str]:
         # Проверка уникальности email
         existing = await self.user_repo.get_by_email(payload.email)
         if existing:
@@ -64,19 +64,21 @@ class AuthService:
 
         access_token, refresh_token = await self._create_token_pair(db_user)
 
-        return TokenWithUser(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            user=UserResponse(
-                id=db_user.id,
-                email=db_user.email,
-                full_name=db_user.full_name,
-                is_active=db_user.is_active,
-                is_superuser=db_user.is_superuser,
-                role=db_user.role,
-                created_at=db_user.created_at,
+        return (
+            TokenWithUser(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=db_user.id,
+                    email=db_user.email,
+                    full_name=db_user.full_name,
+                    is_active=db_user.is_active,
+                    is_superuser=db_user.is_superuser,
+                    role=db_user.role,
+                    created_at=db_user.created_at,
+                ),
             ),
+            refresh_token,
         )
 
     async def authenticate_user(self, email: str, password: str) -> User:
@@ -87,25 +89,27 @@ class AuthService:
             raise HTTPException(status_code=403, detail="User account is inactive")
         return user
 
-    async def login(self, email: str, password: str) -> TokenWithUser:
+    async def login(self, email: str, password: str) -> Tuple[TokenWithUser, str]:
         user = await self.authenticate_user(email, password)
         access_token, refresh_token = await self._create_token_pair(user)
-        return TokenWithUser(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            user=UserResponse(
-                id=user.id,
-                email=user.email,
-                full_name=user.full_name,
-                is_active=user.is_active,
-                is_superuser=user.is_superuser,
-                role=user.role,
-                created_at=user.created_at,
+        return (
+            TokenWithUser(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user.id,
+                    email=user.email,
+                    full_name=user.full_name,
+                    is_active=user.is_active,
+                    is_superuser=user.is_superuser,
+                    role=user.role,
+                    created_at=user.created_at,
+                ),
             ),
+            refresh_token,
         )
 
-    async def refresh(self, refresh_token: str) -> TokenWithUser:
+    async def refresh(self, refresh_token: str) -> Tuple[TokenWithUser, str]:
         db_token = await self.refresh_repo.get_valid(refresh_token)
         if not db_token:
             raise HTTPException(
@@ -118,19 +122,21 @@ class AuthService:
         await self.refresh_repo.revoke(refresh_token)
         access_token, new_refresh_token = await self._create_token_pair(user)
 
-        return TokenWithUser(
-            access_token=access_token,
-            refresh_token=new_refresh_token,
-            token_type="bearer",
-            user=UserResponse(
-                id=user.id,
-                email=user.email,
-                full_name=user.full_name,
-                is_active=user.is_active,
-                is_superuser=user.is_superuser,
-                role=user.role,
-                created_at=user.created_at,
+        return (
+            TokenWithUser(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user.id,
+                    email=user.email,
+                    full_name=user.full_name,
+                    is_active=user.is_active,
+                    is_superuser=user.is_superuser,
+                    role=user.role,
+                    created_at=user.created_at,
+                ),
             ),
+            new_refresh_token,
         )
 
     async def logout(self, user: User, refresh_token: str | None = None) -> None:

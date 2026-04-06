@@ -1,19 +1,45 @@
+import asyncio
 import json
-import os
 import re
-from typing import List, Dict, Any
+from typing import Any
+
 from openai import AsyncOpenAI
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-# Получение API-ключа
-api_key = os.getenv("OPENROUTER_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENROUTER_API_KEY не найден в переменных окружения")
+from app.core.config import settings
 
-# Инициализация клиента
-client = AsyncOpenAI(
-    api_key=api_key,
-    base_url="https://openrouter.ai/api/v1",  # Исправлены пробелы в URL
+_client: AsyncOpenAI | None = None
+_llm_semaphore = asyncio.Semaphore(settings.external_api_concurrency_limit)
+
+
+def get_client() -> AsyncOpenAI:
+    global _client
+    if _client is None:
+        if not settings.openrouter_api_key:
+            raise RuntimeError("OPENROUTER_API_KEY не найден в переменных окружения")
+        _client = AsyncOpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url=settings.openrouter_base_url,
+            timeout=settings.external_api_timeout_seconds,
+        )
+    return _client
+
+
+@retry(
+    stop=stop_after_attempt(settings.external_api_max_retries),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    retry=retry_if_exception_type(Exception),
+    reraise=True,
 )
+async def _request_questions(prompt: str):
+    async with _llm_semaphore:
+        client = get_client()
+        return await client.chat.completions.create(
+            model=settings.openrouter_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=1500,
+        )
 
 
 async def generate_questions_from_text(text: str) -> list[dict]:
@@ -39,12 +65,7 @@ async def generate_questions_from_text(text: str) -> list[dict]:
     Текст: {text}
     """
 
-    response = await client.chat.completions.create(
-        model="z-ai/glm-4.5-air:free",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-        max_tokens=1500,
-    )
+    response = await _request_questions(prompt)
 
     raw = response.choices[0].message.content
     print("[DEBUG] raw response:", repr(raw))

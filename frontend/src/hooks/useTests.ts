@@ -63,7 +63,7 @@ export function useGeneratedForms(params?: TestsListParams) {
   };
 }
 
-export function useTestAttachments(formId: number | null) {
+export function useTestAttachments(formId: number | null, enabled: boolean = true) {
   const [attachments, setAttachments] = useState<TestAttachmentWithUrl[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,8 +83,9 @@ export function useTestAttachments(formId: number | null) {
   }, [formId]);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchAttachments();
-  }, [fetchAttachments]);
+  }, [enabled, fetchAttachments]);
 
   return { attachments, isLoading, error, refetch: fetchAttachments };
 }

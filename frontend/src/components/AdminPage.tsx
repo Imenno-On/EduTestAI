@@ -11,21 +11,19 @@ import {
 import { Shield, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usersApi, UserResponse } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
-interface AdminPageProps {
-  onNavigate: (page: string) => void;
-}
-
-export function AdminPage({ onNavigate }: AdminPageProps) {
+export function AdminPage() {
   const { isAdmin, user } = useAuth();
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isAdmin) {
-      onNavigate("dashboard");
+      navigate("/app/tests");
       return;
     }
     const fetchUsers = async () => {
@@ -41,7 +39,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
       }
     };
     fetchUsers();
-  }, [isAdmin, onNavigate]);
+  }, [isAdmin, navigate]);
 
   const handleRoleChange = async (targetUser: UserResponse, newRole: string) => {
     if (targetUser.id === user?.id && newRole !== "admin") {

@@ -4,6 +4,15 @@ from typing import Optional
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://edutest:edutest@localhost:5432/edutestai"
+    frontend_public_url: str = "http://localhost:5173"
+    backend_public_url: str = "http://localhost:8000"
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "z-ai/glm-4.5-air:free"
+    google_script_url: str = ""
+    external_api_timeout_seconds: int = 30
+    external_api_max_retries: int = 3
+    external_api_concurrency_limit: int = 3
 
     # S3 / MinIO
     s3_endpoint_url: str = "http://localhost:9000"

@@ -3,7 +3,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -36,40 +35,38 @@ type AuthContextValue = AuthState & {
 
 const STORAGE_KEY = "edutest_auth_state";
 
+function loadStoredAuth(): AuthState {
+  if (typeof window === "undefined") {
+    return { user: null, token: null, isLoading: false, error: null };
+  }
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return { user: null, token: null, isLoading: false, error: null };
+    const parsed = JSON.parse(stored) as { user: User; token: string };
+    if (parsed.user && parsed.token) {
+      return {
+        user: parsed.user,
+        token: parsed.token,
+        isLoading: false,
+        error: null,
+      };
+    }
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return { user: null, token: null, isLoading: false, error: null };
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    token: null,
-    isLoading: false,
-    error: null,
-  });
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored) as {
-        user: User;
-        token: string;
-        refreshToken?: string;
-      };
-      setState((prev) => ({
-        ...prev,
-        user: parsed.user,
-        token: parsed.token,
-      }));
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
+  const [state, setState] = useState<AuthState>(loadStoredAuth);
 
   const persistState = useCallback(
-    (user: User, accessToken: string, refreshToken: string) => {
+    (user: User, accessToken: string) => {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ user, token: accessToken, refreshToken }),
+        JSON.stringify({ user, token: accessToken }),
       );
     },
     [],
@@ -84,7 +81,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
       try {
         const data = await authApi.login(email, password);
-        persistState(data.user, data.access_token, data.refresh_token);
+        persistState(data.user, data.access_token);
         setState({
           user: data.user,
           token: data.access_token,
@@ -113,7 +110,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           password: params.password,
           full_name: params.fullName,
         } as any);
-        persistState(data.user, data.access_token, data.refresh_token);
+        persistState(data.user, data.access_token);
         setState({
           user: data.user,
           token: data.access_token,

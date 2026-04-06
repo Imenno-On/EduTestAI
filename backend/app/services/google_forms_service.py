@@ -1,23 +1,17 @@
 import aiohttp
-import os
 import logging
 import json
 import re
 from typing import List, Dict, Any
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from app.core.config import settings
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Получение URL скрипта
-SCRIPT_URL = os.getenv("GOOGLE_SCRIPT_URL")
-if not SCRIPT_URL:
-    raise RuntimeError("GOOGLE_SCRIPT_URL не найден в переменных окружения")
-
-
 @retry(
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(settings.external_api_max_retries),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception(lambda e: isinstance(e, (aiohttp.ClientError, json.JSONDecodeError))),
     reraise=True
@@ -51,7 +45,9 @@ async def create_google_form(title: str, questions: List[Dict[str, Any]]) -> dic
     logger.debug(f"Тело запроса: {json.dumps(body, ensure_ascii=False)[:500]}...")
 
     try:
-        timeout = aiohttp.ClientTimeout(total=30)
+        if not settings.google_script_url:
+            raise RuntimeError("GOOGLE_SCRIPT_URL не найден в переменных окружения")
+        timeout = aiohttp.ClientTimeout(total=settings.external_api_timeout_seconds)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             headers = {
@@ -60,7 +56,7 @@ async def create_google_form(title: str, questions: List[Dict[str, Any]]) -> dic
             }
 
             async with session.post(
-                    SCRIPT_URL,
+                    settings.google_script_url,
                     json=body,
                     headers=headers
             ) as resp:

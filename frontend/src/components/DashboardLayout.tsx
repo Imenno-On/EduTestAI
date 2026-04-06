@@ -12,36 +12,50 @@ import {
   Shield,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Seo } from "./Seo";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  currentPage: string;
-  onNavigate: (page: string) => void;
-  onCreateTest?: () => void;
-  onLogout?: () => void;
 }
 
 const baseMenuItems = [
-  { id: "tests", label: "Мои тесты", icon: FileText },
-  { id: "students", label: "Ученики", icon: Users },
-  { id: "groups", label: "Группы", icon: FolderKanban },
-  { id: "statistics", label: "Статистика", icon: BarChart3 },
+  { id: "tests", label: "Мои тесты", icon: FileText, path: "/app/tests" },
+  { id: "students", label: "Ученики", icon: Users, path: "/app/students" },
+  { id: "groups", label: "Группы", icon: FolderKanban, path: "/app/groups" },
+  { id: "statistics", label: "Статистика", icon: BarChart3, path: "/app/statistics" },
 ];
 
-export function DashboardLayout({
-  children,
-  currentPage,
-  onNavigate,
-  onCreateTest,
-  onLogout,
-}: DashboardLayoutProps) {
-  const { user, isAdmin } = useAuth();
+const pageDescriptions: Record<string, string> = {
+  tests: "Управляйте созданными тестами",
+  students: "Список учеников и их результаты",
+  groups: "Организуйте учеников в группы",
+  statistics: "Анализ успеваемости и прогресса",
+  admin: "Управление ролями пользователей",
+};
+
+export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const { user, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const menuItems = [
     ...baseMenuItems,
-    ...(isAdmin ? [{ id: "admin", label: "Пользователи", icon: Shield }] : []),
+    ...(isAdmin
+      ? [{ id: "admin", label: "Пользователи", icon: Shield, path: "/app/admin" }]
+      : []),
   ];
+  const currentPage = location.pathname.split("/").pop() || "tests";
+
   return (
     <div className="flex h-screen bg-gray-50">
+      <Seo
+        title={`EduTest AI | ${
+          menuItems.find((item) => item.id === currentPage)?.label || "Кабинет"
+        }`}
+        description="Закрытый раздел EduTest AI для управления тестами и учебными данными."
+        canonicalPath={location.pathname}
+        noIndex
+      />
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r flex flex-col">
         {/* Logo */}
@@ -58,20 +72,21 @@ export function DashboardLayout({
         <nav className="flex-1 p-4 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPage === item.id;
             return (
-              <button
+              <NavLink
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive
-                    ? "bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/30"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                to={item.path}
+                className={({ isActive }) =>
+                  `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    isActive
+                      ? "bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/30"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`
+                }
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
-              </button>
+              </NavLink>
             );
           })}
         </nav>
@@ -99,8 +114,8 @@ export function DashboardLayout({
             variant="ghost"
             className="w-full justify-start text-muted-foreground hover:text-destructive"
             onClick={() => {
-              onLogout?.();
-              onNavigate("home");
+              logout();
+              navigate("/");
             }}
           >
             <LogOut className="w-4 h-4 mr-2" />
@@ -118,18 +133,12 @@ export function DashboardLayout({
               {menuItems.find((item) => item.id === currentPage)?.label || "Кабинет"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {currentPage === "tests" && "Управляйте созданными тестами"}
-              {currentPage === "students" &&
-                "Список учеников и их результаты"}
-              {currentPage === "groups" && "Организуйте учеников в группы"}
-              {currentPage === "statistics" &&
-                "Анализ успеваемости и прогресса"}
-              {currentPage === "admin" && "Управление ролями пользователей"}
+              {pageDescriptions[currentPage] || "Рабочая область приложения"}
             </p>
           </div>
-          {(currentPage === "tests" || currentPage === "groups") && onCreateTest && (
+          {(currentPage === "tests" || currentPage === "groups") && (
             <Button
-              onClick={onCreateTest}
+              onClick={() => navigate("/")}
               className="bg-gradient-to-r from-primary to-purple-600 hover:from-purple-600 hover:to-primary"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -145,9 +154,9 @@ export function DashboardLayout({
       </div>
 
       {/* Floating action button for mobile-like experience */}
-      {currentPage === "tests" && onCreateTest && (
+      {currentPage === "tests" && (
         <button
-          onClick={onCreateTest}
+          onClick={() => navigate("/")}
           className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-primary to-purple-600 hover:from-purple-600 hover:to-primary text-white rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110"
         >
           <Plus className="w-6 h-6" />
