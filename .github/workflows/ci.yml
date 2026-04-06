@@ -101,4 +101,16 @@ jobs:
         run: docker compose config
 
       - name: Build application images
-        run: docker compose build
+        run: |
+          for attempt in 1 2 3; do
+            echo "Docker build attempt ${attempt}/3"
+            if docker compose build; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Docker build failed, retrying in 15 seconds..."
+              sleep 15
+            fi
+          done
+          echo "Docker build failed after 3 attempts"
+          exit 1
