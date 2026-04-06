@@ -36,6 +36,8 @@ env/
 
 backend/.env
 backend/.env.*
+.env
+.env.*
 
 ########################
 # Node / frontend      #

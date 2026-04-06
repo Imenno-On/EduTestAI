@@ -352,3 +352,161 @@ npm run test:e2e
 - E2E-тесты используют браузерный сценарий с моками сетевых ответов
 - состояние очищается между тестами через фикстуры, reset моков и очистку `localStorage`
 
+---
+
+## Лабораторная №6 — Контейнеризация и автоматизация развертывания
+
+### Архитектура контейнеризации
+
+Сервисы приложения:
+
+- `frontend` — production-сборка React-приложения и reverse proxy на `Nginx`
+- `backend` — FastAPI + Alembic migrations + интеграции с OpenRouter, Google Forms и S3
+- `db` — PostgreSQL
+- `minio` — S3-совместимое объектное хранилище
+
+Схема взаимодействия:
+
+`Browser -> Nginx -> Frontend static files`
+
+`Browser -> Nginx -> /api, /health, /robots.txt, /sitemap.xml -> FastAPI`
+
+`FastAPI -> PostgreSQL`
+
+`FastAPI -> MinIO`
+
+`FastAPI -> OpenRouter / Google Forms`
+
+### Что добавлено
+
+- `backend/Dockerfile` и `backend/docker-entrypoint.sh`
+- `frontend/Dockerfile` и `frontend/nginx.conf`
+- `backend/.dockerignore` и `frontend/.dockerignore`
+- расширенный `docker-compose.yml` для полного стека
+- `.env.example` для безопасной конфигурации
+- GitHub Actions workflow: `.github/workflows/ci.yml`
+
+### Безопасная конфигурация
+
+- секреты вынесены в переменные окружения
+- шаблон конфигурации хранится в `.env.example`
+- `.env` и производные исключены из git
+- JWT secret больше не захардкожен в коде и берётся из env
+
+### Запуск всего приложения одной командой
+
+1. Создать файл окружения:
+
+```bash
+cp .env.example .env
+```
+
+2. При необходимости заполнить:
+
+- `OPENROUTER_API_KEY`
+- `GOOGLE_SCRIPT_URL`
+- `JWT_SECRET_KEY`
+
+3. Поднять стек:
+
+```bash
+docker compose up -d --build
+```
+
+4. Проверить состояние:
+
+```bash
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+```
+
+### Что где доступно
+
+- приложение: `http://localhost:8080`
+- backend healthcheck: `http://localhost:8080/health/`
+- robots: `http://localhost:8080/robots.txt`
+- sitemap: `http://localhost:8080/sitemap.xml`
+- MinIO API: `http://localhost:9000`
+- MinIO Console: `http://localhost:9001`
+
+### Healthcheck и порядок запуска
+
+- `db` проверяется через `pg_isready`
+- `minio` проверяется через HTTP liveness endpoint
+- `backend` стартует только после готовности `db` и `minio`
+- при старте `backend` выполняет `alembic upgrade head`, затем запускает `uvicorn`
+- `frontend` ждёт готовности `backend`
+
+### Автоматизация качества
+
+В `.github/workflows/ci.yml` настроены:
+
+- backend tests
+- frontend unit/integration tests
+- frontend production build
+- frontend E2E tests
+- проверка `docker compose config`
+- сборка контейнерных образов
+
+### Проверка итоговой конфигурации
+
+Базовый сценарий проверки:
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+Затем проверить:
+
+- открывается главная страница на `http://localhost:8080`
+- доступен `http://localhost:8080/health/`
+- работает авторизация
+- сохраняется работа RBAC и защищённых маршрутов
+- создаются тесты и вложения при доступных внешних сервисах
+- работает `robots.txt` и `sitemap.xml`
+
+### Проверка устойчивости к сбоям
+
+Примеры сценариев:
+
+1. Остановить backend:
+
+```bash
+docker compose stop backend
+docker compose ps
+```
+
+Ожидание: frontend продолжает отвечать статикой, а API становится недоступным.
+
+2. Остановить MinIO:
+
+```bash
+docker compose stop minio
+docker compose logs backend
+```
+
+Ожидание: загрузка вложений перестаёт работать, но приложение не падает целиком.
+
+3. Проверить миграции:
+
+```bash
+docker compose up -d --build backend
+docker compose logs backend
+```
+
+Ожидание: при ошибке миграции контейнер `backend` не переходит в рабочее состояние, что упрощает диагностику.
+
+### Остановка окружения
+
+```bash
+docker compose down
+```
+
+Для удаления томов данных:
+
+```bash
+docker compose down -v
+```
+
